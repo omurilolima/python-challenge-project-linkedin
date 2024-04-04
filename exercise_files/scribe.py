@@ -14,10 +14,11 @@ class Canvas:
     def clear(self):
         os.system('cls' if os.name == 'nt' else 'clear')
 
+    # Clear the terminal and then print each line in the canvas
     def print(self):
         self.clear()
         for y in range(self._y):
-            print([' '.join([col[y] for col in self._canvas])])
+            print(' '.join([col[y] for col in self._canvas]))
         time.sleep(0.1)
 
 class TerminalScribe:
