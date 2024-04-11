@@ -1,8 +1,15 @@
 import os
 import time
-from termcolor import colored
+from termcolor import colored, COLORS
 import math 
 import random
+
+class TerminalScribeException(Exception):
+    def __init__(self, message=''):
+        super().__init__(colored(message, 'red'))
+
+class InvalidParameter(TerminalScribeException):
+    pass
 
 class Canvas:
     def __init__(self, width, height):
@@ -23,7 +30,10 @@ class Canvas:
         return [-1 if self.hitsVerticalWall(point) else 1, -1 if self.hitsHorizontalWall(point) else 1]
 
     def setPos(self, pos, mark):
-        self._canvas[round(pos[0])][round(pos[1])] = mark
+        try:
+            self._canvas[round(pos[0])][round(pos[1])] = mark
+        except Exception as e:
+            raise TerminalScribeException(f'Could not set position to {pos} with mark {mark}')
 
     def clear(self):
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -50,15 +60,49 @@ class CanvasAxis(Canvas):
 
         print(' '.join([self.formatAxisNumber(x) for x in range(self._x)]))
 
+def is_number(val):
+    try:
+        float(val)
+        return True
+    except ValueError:
+        return False
+
 class TerminalScribe:
-    def __init__(self, canvas, color='red', mark='*', trail='.', pos=(0, 0), framerate=.05, direction=[0, 1]):
+    def __init__(self,
+                 canvas,
+                 color='red',
+                 mark='*',
+                 trail='.',
+                 pos=(0, 0),
+                 framerate=.05,
+                 degrees=135):
+        if not issubclass(type(canvas), Canvas):
+            raise InvalidParameter('Must pass canvas object')
         self.canvas = canvas
+
+        if len(str(trail)) != 1:
+            raise InvalidParameter('Trail must be a single character')
         self.trail = trail
+
+        if len(str(mark)) != 1:
+            raise InvalidParameter('Mark must be a single character')
         self.mark = mark
+
+        if not is_number(framerate):
+            raise InvalidParameter('Framerate must be a number')
         self.framerate = framerate
+
+        if len(pos) !=2 or not is_number(pos[0]) or not is_number(pos[1]):
+            raise InvalidParameter('Position must be two numeric values (x, y)')
         self.pos = pos
+
+        if color not in COLORS:
+            raise InvalidParameter(f'Color {color} not a valid color ({", ".join(list(COLORS.keys()))})')
         self.color=color
-        self.direction = direction
+
+        if not is_number(degrees):
+            raise InvalidParameter('Degrees must be a valid number')
+        self.setDegrees(degrees)
 
     def setPosition(self, pos):
         self.pos = pos
@@ -144,16 +188,12 @@ def sine(x):
 def cosine(x):
     return 5*math.cos(x/4) + 15
 
+def circleBottom(x):
+    radius = 10
+    center = 20
+    if x > center - radius and x < center + radius:
+        return center+math.sqrt(radius**2 - (x-center)**2)
 
-canvas = CanvasAxis(30, 30)
-plotScribe = PlotScribe(canvas)
-plotScribe.plotX(sine)
-
-robotScribe = RobotScribe(canvas, color='blue')
-robotScribe.drawSquare(10)
-
-randomScribe = RandomWalkScribe(canvas, color='green', pos=(0, 0))
-randomScribe.forward(1000)
-
-
-
+canvas = Canvas(40, 40)
+scribe = TerminalScribe(canvas, color='red')
+scribe.forward(1000)
