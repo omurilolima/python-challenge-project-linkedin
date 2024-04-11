@@ -10,8 +10,17 @@ class Canvas:
         self._y = height
         self._canvas = [[' ' for y in range(self._y)] for x in range(self._x)]
 
+    def hitsVerticalWall(self, point):
+        return round(point[0]) < 0 or round(point[0]) >= self._x
+
+    def hitsHorizontalWall(self, point):
+        return round(point[1]) < 0 or round(point[1]) >= self._y
+
     def hitsWall(self, point):
-        return round(point[0]) < 0 or round(point[0]) >= self._x or round(point[1]) < 0 or round(point[1]) >= self._y
+        return self.hitsVerticalWall(point) or self.hitsHorizontalWall(point)
+
+    def getReflection(self, point):
+        return [- 1 if self.hitsVerticalWall(point) else 1, -1 if self.hitsHorizontalWall(point) else 1]
 
     def setPos(self, pos, mark):
         self._canvas[round(pos[0])][round(pos[1])] = mark
@@ -40,23 +49,30 @@ class TerminalScribe:
 
     def up(self):
         self.direction = [0, -1]
-        self.forward()
+        self.forward(1)
 
     def down(self):
         self.direction = [0, 1]
-        self.forward()
+        self.forward(1)
 
     def right(self):
         self.direction = [1, 0]
-        self.forward()
+        self.forward(1)
 
     def left(self):
         self.direction = [-1, 0]
-        self.forward()
+        self.forward(1)
 
-    def forward(self):
-        pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
-        if not self.canvas.hitsWall(pos):
+    def bounce(self, pos):
+        reflection = self.canvas.getReflection(pos)
+        self.direction = [self.direction[0] * reflection[0], self.direction[1] + reflection[1]]
+
+    def forward(self, distance):
+        for i in range(distance):
+            pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
+            if self.canvas.hitsWall(pos):
+                self.bounce(pos)
+                pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
             self.draw(pos)
 
     def drawSquare(self, size):
@@ -78,7 +94,5 @@ class TerminalScribe:
 
 canvas = Canvas(30, 30)
 scribe = TerminalScribe(canvas)
-scribe.setDegrees(135)
-for i in range(30):
-    scribe.forward()
-
+scribe.setDegrees(150)
+scribe.forward(100)
