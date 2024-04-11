@@ -78,6 +78,12 @@ class TerminalScribe:
                 pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
             self.draw(pos)
 
+    def plotX(self, function):
+        for x in range(self.canvas._x):
+            pos = [x, function(x)]
+            if pos[1] and not self.canvas.hitsWall(pos):
+                self.draw(pos)
+
     def drawSquare(self, size):
         for i in range(size):
             self.right()
@@ -95,10 +101,14 @@ class TerminalScribe:
         self.canvas.print()
         time.sleep(self.framerate)
 
+def sine(x):
+    return 5*math.sin(x/4) + 10
 
-canvas = Canvas(30, 30)
+def cosine(x):
+    return 5*math.cos(x/4) + 10
+
+
+canvas = Canvas(40, 40)
 scribe = TerminalScribe(canvas)
-scribe.setDegrees(150)
-scribe.forward(100)
-
-
+scribe.plotX(sine)
+scribe.plotX(cosine)
