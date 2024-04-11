@@ -2,6 +2,7 @@ import os
 import time
 from termcolor import colored
 import math 
+import random
 
 
 class Canvas:
@@ -33,15 +34,38 @@ class Canvas:
         for y in range(self._y):
             print(' '.join([col[y] for col in self._canvas]))
 
-class TerminalScribe:
-    def __init__(self, canvas):
-        self.canvas = canvas
-        self.trail = '.'
-        self.mark = '*'
-        self.framerate = 0.05
-        self.pos = [0, 0]
+class CanvasAxis(Canvas):
+    # Pads 1-digit numbers with an extra space
+    def formatAxisNumber(self, num):
+        if num % 5 != 0:
+            return ' '
+        if num < 10:
+            return ' '+str(num)
+        return str(num)
 
-        self.direction = [0, 1]
+    def print(self):
+        self.clear()
+        for y in range(self._y):
+            print(self.formatAxisNumber(y) + ' '.join([col[y] for col in self._canvas]))
+
+        print(' '.join([self.formatAxisNumber(x) for x in range(self._x)]))
+
+class TerminalScribe:
+    def __init__(self,
+                 canvas,
+                 color='red',
+                 mark='*',
+                 trail='.',
+                 pos=(0, 0),
+                 framerate=.05,
+                 direction=[0, 1]):
+        self.canvas = canvas
+        self.trail = trail
+        self.mark = mark
+        self.framerate = framerate
+        self.pos = pos
+        self.color=color
+        self.direction = direction
 
     def setPosition(self, pos):
         self.pos = pos
@@ -50,6 +74,34 @@ class TerminalScribe:
         radians = (degrees/180) * math.pi 
         self.direction = [math.sin(radians), -math.cos(radians)]
 
+    def bounce(self, pos):
+        reflection = self.canvas.getReflection(pos)
+        self.direction = [self.direction[0] * reflection[0], self.direction[1] * reflection[1]]
+
+    def forward(self, distance):
+        for i in range(distance):
+            pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
+            if self.canvas.hitsWall(pos):
+                self.bounce(pos)
+                pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
+            self.draw(pos)
+
+    def draw(self, pos):
+        self.canvas.setPos(self.pos, self.trail)
+        self.pos = pos
+        self.canvas.setPos(self.pos, colored(self.mark, self.color))
+        #print(self.pos)
+        self.canvas.print()
+        time.sleep(self.framerate)
+
+class PlotScribe(TerminalScribe):
+    def plotX(self, function):
+        for x in range(self.canvas._x):
+            pos = [x, function(x)]
+            if pos[1] and not self.canvas.hitsWall(pos):
+                self.draw(pos)
+
+class RobotScribe(TerminalScribe):
     def up(self):
         self.direction = [0, -1]
         self.forward(1)
@@ -66,24 +118,6 @@ class TerminalScribe:
         self.direction = [-1, 0]
         self.forward(1)
 
-    def bounce(self, pos):
-        reflection = self.canvas.getReflection(pos)
-        self.direction = [self.direction[0] * reflection[0], self.direction[1] * reflection[1]]
-
-    def forward(self, distance):
-        for i in range(distance):
-            pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
-            if self.canvas.hitsWall(pos):
-                self.bounce(pos)
-                pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
-            self.draw(pos)
-
-    def plotX(self, function):
-        for x in range(self.canvas._x):
-            pos = [x, function(x)]
-            if pos[1] and not self.canvas.hitsWall(pos):
-                self.draw(pos)
-
     def drawSquare(self, size):
         for i in range(size):
             self.right()
@@ -94,13 +128,28 @@ class TerminalScribe:
         for i in range(size):
             self.up()
 
-    def draw(self, pos):
-        self.canvas.setPos(self.pos, self.trail)
-        self.pos = pos
-        self.canvas.setPos(self.pos, colored(self.mark, 'red'))
-        #print(self.pos)
-        self.canvas.print()
-        time.sleep(self.framerate)
+
+class RandomWalkScribe(TerminalScribe):
+    def __init__(self, canvas, degrees=135, **kwargs):
+        super().__init__(canvas, **kwargs)
+        self.degrees = degrees
+
+    def randomizeDegreeOrientation(self):
+        self.degrees = random.randint(self.degrees-10, self.degrees+10)
+        self.setDegrees(self.degrees)
+
+    def bounce(self, pos):
+        reflection = self.canvas.getReflection(pos)
+        if reflection[0] == -1:
+            self.degrees = 360 - self.degrees
+        if reflection[1] == -1:
+            self.degrees = 180 - self.degrees
+        self.direction = [self.direction[0] * reflection[0], self.direction[1] * reflection[1]]
+
+    def forward(self, distance):
+        for i in range(distance):
+            self.randomizeDegreeOrientation()
+            super().forward(1)
 
 
 def sine(x):
@@ -122,11 +171,12 @@ def circleBottom(x):
         return center+math.sqrt(radius**2 - (x-center)**2)
 
 
-canvas = Canvas(30, 30)
-scribe = TerminalScribe(canvas)
-scribe.drawSquare(20)
-#scribe.plotX(sine)
-#scribe.plotX(cosine)
-#scribe.plotX(circleTop)
-#scribe.plotX(circleBottom)
+canvas = CanvasAxis(30, 30)
+plotScribe = PlotScribe(canvas)
+plotScribe.plotX(sine)
 
+robotScribe = RobotScribe(canvas, color='blue')
+robotScribe.drawSquare(10)
+
+randomScribe = RandomWalkScribe(canvas, color='green', pos=(0, 0))
+randomScribe.forward(1000)
