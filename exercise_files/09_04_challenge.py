@@ -1,8 +1,10 @@
 import os
 import time
+from threading import Thread
 from termcolor import colored, COLORS
 import math 
 import random
+
 
 class TerminalScribeException(Exception):
     def __init__(self, message=''):
@@ -41,12 +43,15 @@ class Canvas:
         os.system('cls' if os.name == 'nt' else 'clear')
 
     def go(self):
-        max_moves = max([len(scribe.moves) for scribe in self.scribes])
+        max_moves = max([len(scribe.moves) for scribe in self.scribes])  # find how many moves it needs to iterate through
         for i in range(max_moves):
             for scribe in self.scribes:
+                threads = []
                 if len(scribe.moves) > i:
                     args = scribe.moves[i][1]+[self]
-                    scribe.moves[i][0](*args)
+                    threads.append(Thread(target=scribe.moves[i][0], args=args))
+                [thread.start() for thread in threads]
+                [thread.join() for thread in threads]
             self.print()
             time.sleep(self.framerate)
 
@@ -85,15 +90,15 @@ class TerminalScribe:
         if len(str(trail)) != 1:
             raise InvalidParameter('Trail must be a single character')
         self.trail = str(trail)
-        
+
         if len(str(mark)) != 1:
             raise InvalidParameter('Mark must be a single character')
         self.mark = str(mark)
-        
+
         if not is_number(framerate):
             raise InvalidParameter('Framerate must be a number')
         self.framerate = framerate
-        
+
         if len(pos) != 2 or not is_number(pos[0])or not is_number(pos[1]):
             raise InvalidParameter('Position must be two numeric values (x, y)')
         self.pos = pos
@@ -101,7 +106,7 @@ class TerminalScribe:
         if color not in COLORS:
             raise InvalidParameter(f'color {color} not a valid color ({", ".join(list(COLORS.keys()))})')
         self.color=color
-        
+
         if not is_number(degrees):
             raise InvalidParameter('Degrees must be a valid number')
         self.setDegrees(degrees)
@@ -136,7 +141,7 @@ class TerminalScribe:
                 self.bounce(pos, canvas)
                 pos = [self.pos[0] + self.direction[0], self.pos[1] + self.direction[1]]
             self.draw(pos, canvas)
-        
+
         for i in range(distance):
             self.moves.append((_forward, [self]))
 
@@ -243,4 +248,3 @@ scribe5 = RandomWalkScribe(color='blue')
 scribe5.forward(1000)
 canvas = CanvasAxis(40, 40, scribes=[scribe1, scribe2, scribe3, scribe4, scribe5])
 canvas.go()
-
